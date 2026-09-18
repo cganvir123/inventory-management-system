@@ -15,7 +15,10 @@ app.use(express.json());
 app.use(cookieParser()); // Allows us to read the httpOnly cookie
 app.use(
   cors({
-    origin: "http://localhost:5173", // We will set up React on port 5173 later
+    origin: [
+      "http://localhost:5173",
+      "https://inventory-management-system-zeta-vert.vercel.app", // No trailing slash at the end
+    ],
     credentials: true, // Crucial for sending cookies between front/back end
   }),
 );
