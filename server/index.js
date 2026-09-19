@@ -14,12 +14,23 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(cookieParser()); // Allows us to read the httpOnly cookie
+// Replace your current cors block in index.js with this:
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "https://inventory-management-system-zeta-vert.vercel.app", // No trailing slash at the end
-    ],
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like Postman or mobile apps)
+      if (!origin) return callback(null, true);
+
+      // Allow localhost and any Vercel deployment domain
+      if (
+        origin === "http://localhost:5173" ||
+        origin.endsWith(".vercel.app")
+      ) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true, // Crucial for sending cookies between front/back end
   }),
 );
