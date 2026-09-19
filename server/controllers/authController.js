@@ -3,15 +3,20 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 
 // Helper function to generate both tokens
-const generateTokens = (userId) => {
-  const accessToken = jwt.sign({ id: userId }, process.env.JWT_ACCESS_SECRET, {
-    expiresIn: "15m",
-  });
+const generateTokens = (user) => {
+  // Update the payload to include email and role for the frontend
+  const accessToken = jwt.sign(
+    { id: user.id, email: user.email, role: user.role },
+    process.env.JWT_ACCESS_SECRET,
+    { expiresIn: "15m" },
+  );
+
   const refreshToken = jwt.sign(
-    { id: userId },
+    { id: user.id },
     process.env.JWT_REFRESH_SECRET,
     { expiresIn: "7d" },
   );
+
   return { accessToken, refreshToken };
 };
 
@@ -43,8 +48,8 @@ exports.login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ error: "Invalid credentials" });
 
-    // 3. Generate tokens
-    const { accessToken, refreshToken } = generateTokens(user.id);
+    // 3. Generate tokens (passing the entire user object now)
+    const { accessToken, refreshToken } = generateTokens(user);
 
     // 4. Save refresh token to database
     user.refreshToken = refreshToken;
@@ -54,7 +59,7 @@ exports.login = async (req, res) => {
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production", // true in production
-      sameSite: "strict",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
@@ -95,9 +100,9 @@ exports.refreshToken = async (req, res) => {
             .json({ error: "Invalid refresh token session" });
         }
 
-        // 4. Generate a fresh Access Token
+        // 4. Generate a fresh Access Token (with updated payload)
         const newAccessToken = jwt.sign(
-          { id: user.id },
+          { id: user.id, email: user.email, role: user.role },
           process.env.JWT_ACCESS_SECRET,
           { expiresIn: "15m" },
         );

@@ -1,142 +1,178 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axios";
 
 const InwardRegister = () => {
-  const navigate = useNavigate();
   const [entries, setEntries] = useState([]);
+  const [sppItems, setSppItems] = useState([]);
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
+
+  // Wire up the form to state
   const [formData, setFormData] = useState({
-    itemName: "",
+    sppMasterId: "",
     batchNumber: "",
     quantityReceived: "",
     isHod: false,
-    remarks: "",
   });
 
-  // Fetch entries when the component loads
   useEffect(() => {
-    fetchEntries();
-  }, []);
+    const fetchData = async () => {
+      try {
+        // Fetch both the table entries and the master dropdown list simultaneously
+        const [inwardRes, sppRes] = await Promise.all([
+          axiosInstance.get("/inward"),
+          axiosInstance.get("/spp"),
+        ]);
 
-  const fetchEntries = async () => {
-    try {
-      const response = await axiosInstance.get("/inward");
-      setEntries(response.data);
-    } catch (error) {
-      console.error("Failed to fetch entries", error);
-    }
+        setEntries(inwardRes.data);
+        // Only populate the dropdown with active items
+        setSppItems(sppRes.data.filter((item) => item.isActive));
+      } catch (err) {
+        if (err.response?.status === 401 || err.response?.status === 403) {
+          navigate("/login");
+        } else {
+          setError("Failed to load data. Please try again.");
+        }
+      }
+    };
+
+    fetchData();
+  }, [navigate]);
+
+  const handleInputChange = (e) => {
+    const { id, value, type, checked } = e.target;
+    setFormData({
+      ...formData,
+      [id]: type === "checkbox" ? checked : value,
+    });
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("accessToken");
-    navigate("/");
-  };
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-
-  const handleSubmit = async (e) => {
+  const handleSaveEntry = async (e) => {
     e.preventDefault();
+    setError("");
+
+    if (!formData.sppMasterId || !formData.quantityReceived) {
+      setError("Please select an item and enter a quantity.");
+      return;
+    }
+
     try {
-      await axiosInstance.post("/inward", formData);
-      // Reset form and refresh table
+      // Find the name of the selected item to save alongside the ID
+      const selectedItem = sppItems.find(
+        (item) => item.id === parseInt(formData.sppMasterId),
+      );
+
+      const payload = {
+        sppMasterId: selectedItem.id,
+        itemName: selectedItem.itemName,
+        batchNumber: formData.batchNumber,
+        quantityReceived: formData.quantityReceived,
+        isHod: formData.isHod,
+      };
+
+      await axiosInstance.post("/inward", payload);
+
+      // Refresh the table and reset the form on success
+      const updatedEntries = await axiosInstance.get("/inward");
+      setEntries(updatedEntries.data);
       setFormData({
-        itemName: "",
+        sppMasterId: "",
         batchNumber: "",
         quantityReceived: "",
         isHod: false,
-        remarks: "",
       });
-      fetchEntries();
-    } catch (error) {
-      console.error("Failed to submit entry", error);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to save entry.");
     }
   };
 
   return (
-    <div className="container mt-5">
-      <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-2">
-        <h2>Sample Management: Inward Register</h2>
-        <button className="btn btn-outline-danger" onClick={handleLogout}>
-          Logout
-        </button>
+    <div className="container py-4">
+      {/* Header Section */}
+      <div className="mb-4 pb-3 border-bottom border-secondary-subtle">
+        <h2 className="text-dark fw-semibold mb-0">Inward Register</h2>
+        <p className="text-muted small mb-0 mt-1">
+          Log and track incoming samples
+        </p>
       </div>
 
-      <div className="row">
-        {/* Form Section */}
-        <div className="col-md-4 mb-4">
-          <div className="card shadow-sm">
-            <div className="card-header bg-primary text-white">
-              <h5 className="card-title mb-0">New Entry</h5>
+      {error && <div className="alert alert-danger shadow-sm">{error}</div>}
+
+      <div className="row g-4">
+        {/* Form Column */}
+        <div className="col-lg-4">
+          <div className="card shadow-sm border-0">
+            <div className="card-header bg-primary text-white py-3">
+              <h5 className="mb-0 fw-semibold">New Entry</h5>
             </div>
-            <div className="card-body">
-              <form onSubmit={handleSubmit}>
+            <div className="card-body bg-white p-4">
+              <form onSubmit={handleSaveEntry}>
                 <div className="mb-3">
-                  <label className="form-label fw-bold">Item Name</label>
-                  <input
-                    type="text"
-                    className="form-control form-control-sm"
-                    name="itemName"
-                    value={formData.itemName}
-                    onChange={handleChange}
-                    required
-                  />
+                  <label className="form-label fw-medium text-secondary">
+                    Select Item
+                  </label>
+                  <select
+                    id="sppMasterId"
+                    className="form-select focus-ring"
+                    value={formData.sppMasterId}
+                    onChange={handleInputChange}
+                  >
+                    <option value="" disabled>
+                      -- Choose from Master List --
+                    </option>
+                    {sppItems.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.itemCode} - {item.itemName}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="mb-3">
-                  <label className="form-label fw-bold">Batch Number</label>
+                  <label className="form-label fw-medium text-secondary">
+                    Batch Number
+                  </label>
                   <input
                     type="text"
-                    className="form-control form-control-sm"
-                    name="batchNumber"
+                    id="batchNumber"
+                    className="form-control focus-ring"
+                    placeholder="Enter batch no."
                     value={formData.batchNumber}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
                   />
                 </div>
                 <div className="mb-3">
-                  <label className="form-label fw-bold">
+                  <label className="form-label fw-medium text-secondary">
                     Quantity Received
                   </label>
                   <input
                     type="number"
-                    className="form-control form-control-sm"
-                    name="quantityReceived"
+                    id="quantityReceived"
+                    className="form-control focus-ring"
+                    placeholder="0"
                     value={formData.quantityReceived}
-                    onChange={handleChange}
-                    required
+                    onChange={handleInputChange}
                   />
                 </div>
-                <div className="mb-3 form-check">
+                <div className="form-check form-switch mb-4 mt-3">
                   <input
-                    type="checkbox"
                     className="form-check-input"
-                    id="isHodCheck"
-                    name="isHod"
+                    type="checkbox"
+                    id="isHod"
                     checked={formData.isHod}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
                   />
                   <label
-                    className="form-check-label fw-bold"
-                    htmlFor="isHodCheck"
+                    className="form-check-label fw-medium text-secondary"
+                    htmlFor="isHod"
                   >
-                    HOD Approval Required
+                    Requires HOD Approval
                   </label>
                 </div>
-                <div className="mb-3">
-                  <label className="form-label fw-bold">Remarks</label>
-                  <textarea
-                    className="form-control form-control-sm"
-                    name="remarks"
-                    rows="2"
-                    value={formData.remarks}
-                    onChange={handleChange}
-                  ></textarea>
-                </div>
-                <button type="submit" className="btn btn-success btn-sm w-100">
+                <button
+                  type="submit"
+                  className="btn btn-success w-100 fw-bold shadow-sm"
+                >
                   Save Entry
                 </button>
               </form>
@@ -144,55 +180,67 @@ const InwardRegister = () => {
           </div>
         </div>
 
-        {/* Table Section */}
-        <div className="col-md-8">
-          <div className="card shadow-sm">
+        {/* Table Column */}
+        <div className="col-lg-8">
+          <div className="card shadow-sm border-0 h-100">
             <div className="card-body p-0">
-              <table className="table table-hover table-striped mb-0">
-                <thead className="table-light">
-                  <tr>
-                    <th>ID</th>
-                    <th>Item Name</th>
-                    <th>Batch</th>
-                    <th>Qty</th>
-                    <th>HOD</th>
-                    <th>Remarks</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {entries.length > 0 ? (
-                    entries.map((entry) => (
-                      <tr key={entry.id}>
-                        <td>{entry.id}</td>
-                        <td>{entry.itemName}</td>
-                        <td>{entry.batchNumber}</td>
-                        <td>{entry.quantityReceived}</td>
-                        <td>
-                          {entry.isHod ? (
-                            <span className="badge bg-warning text-dark">
-                              Yes
-                            </span>
-                          ) : (
-                            <span className="badge bg-secondary">No</span>
-                          )}
-                        </td>
+              <div className="table-responsive">
+                <table className="table table-hover table-borderless align-middle mb-0">
+                  <thead className="table-light border-bottom">
+                    <tr>
+                      <th className="py-3 ps-4 text-secondary">ID</th>
+                      <th className="py-3 text-secondary">Item Name</th>
+                      <th className="py-3 text-secondary">Batch</th>
+                      <th className="py-3 text-secondary">Qty</th>
+                      <th className="py-3 text-secondary">HOD Status</th>
+                      <th className="py-3 pe-4 text-secondary">Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {entries.length === 0 ? (
+                      <tr>
                         <td
-                          className="text-truncate"
-                          style={{ maxWidth: "150px" }}
+                          colSpan="6"
+                          className="text-center py-5 text-muted bg-white"
                         >
-                          {entry.remarks}
+                          No inward entries found.
                         </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="6" className="text-center py-4 text-muted">
-                        No inward entries found.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      entries.map((entry) => (
+                        <tr key={entry.id} className="border-bottom">
+                          <td className="ps-4 fw-medium text-dark">
+                            #{entry.id}
+                          </td>
+                          <td className="fw-medium">{entry.itemName}</td>
+                          <td>
+                            <span className="badge bg-secondary-subtle text-secondary">
+                              {entry.batchNumber}
+                            </span>
+                          </td>
+                          <td>{entry.quantityReceived || entry.quantity}</td>
+                          <td>
+                            {entry.status === "Approved" ? (
+                              <span className="badge bg-success">Approved</span>
+                            ) : entry.status === "Rejected" ? (
+                              <span className="badge bg-danger">Rejected</span>
+                            ) : entry.isHod ? (
+                              <span className="badge bg-warning text-dark">
+                                Pending
+                              </span>
+                            ) : (
+                              <span className="badge bg-success">Approved</span>
+                            )}
+                          </td>
+                          <td className="pe-4 text-muted small">
+                            {entry.remarks || "-"}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>

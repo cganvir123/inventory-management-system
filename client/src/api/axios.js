@@ -1,8 +1,9 @@
 import axios from "axios";
 
+const baseURL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
 const axiosInstance = axios.create({
-  // VITE_API_URL will be set in the Vercel dashboard later
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
+  baseURL: baseURL,
   withCredentials: true,
 });
 
@@ -28,8 +29,8 @@ axiosInstance.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
-        // Call the refresh endpoint (this automatically sends the httpOnly cookie)
-        const res = await axios.get("http://localhost:5000/api/auth/refresh", {
+        // Call the refresh endpoint dynamically (works locally and in production)
+        const res = await axios.get(`${baseURL}/auth/refresh`, {
           withCredentials: true,
         });
 
@@ -42,7 +43,7 @@ axiosInstance.interceptors.response.use(
       } catch (refreshError) {
         // If the refresh token is expired/invalid, force logout
         localStorage.removeItem("accessToken");
-        window.location.href = "/";
+        window.location.href = "/login";
         return Promise.reject(refreshError);
       }
     }

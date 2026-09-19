@@ -6,6 +6,7 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const authRoutes = require("./routes/authRoutes"); // Import auth routes
 const inwardRoutes = require("./routes/inwardRoutes");
+const sppRoutes = require("./routes/sppRoutes");
 require("dotenv").config();
 
 const app = express();
@@ -26,6 +27,7 @@ app.use(
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/inward", inwardRoutes);
+app.use("/api/spp", sppRoutes);
 
 const PORT = process.env.PORT || 5000;
 

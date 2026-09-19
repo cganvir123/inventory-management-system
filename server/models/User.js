@@ -26,6 +26,10 @@ const User = sequelize.define(
       type: DataTypes.STRING,
       defaultValue: "employee", // e.g., 'employee', 'manager', 'admin'
     },
+    isHod: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
     refreshToken: {
       type: DataTypes.TEXT, // Storing the refresh token to validate or revoke sessions
       allowNull: true,

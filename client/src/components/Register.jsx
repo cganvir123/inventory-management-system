@@ -2,27 +2,29 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axios";
 
-const Login = () => {
+const Register = () => {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
     setError("");
     try {
-      const response = await axiosInstance.post("/auth/login", {
+      // Cleaned up the API call since baseURL is handled by axiosInstance
+      await axiosInstance.post("/auth/register", {
+        name,
         email,
         password,
       });
-
-      localStorage.setItem("accessToken", response.data.accessToken);
-
-      // Redirect directly to the Analytics Dashboard
-      navigate("/dashboard");
+      // On success, redirect back to the shiny new login page
+      navigate("/login");
     } catch (err) {
-      setError(err.response?.data?.message || "Invalid email or password");
+      setError(
+        err.response?.data?.message || "Registration failed. Please try again.",
+      );
     }
   };
 
@@ -33,18 +35,32 @@ const Login = () => {
         style={{ width: "420px" }}
       >
         <div className="card-header bg-white text-center border-0 pt-5 pb-2">
-          <h3 className="fw-bold text-primary mb-1">Welcome Back</h3>
-          <p className="text-muted small">Please sign in to your account</p>
+          <h3 className="fw-bold text-primary mb-1">Create Account</h3>
+          <p className="text-muted small">
+            Register to access the management system
+          </p>
         </div>
         <div className="card-body p-4 pt-2">
           {error && (
             <div className="alert alert-danger py-2 small">{error}</div>
           )}
-          <form onSubmit={handleLogin}>
+          <form onSubmit={handleRegister}>
+            <div className="form-floating mb-3">
+              <input
+                type="text"
+                className="form-control"
+                id="nameInput"
+                placeholder="John Doe"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+              <label htmlFor="nameInput">Full Name</label>
+            </div>
             <div className="form-floating mb-3">
               <input
                 type="email"
-                className="form-control focus-ring"
+                className="form-control"
                 id="emailInput"
                 placeholder="name@example.com"
                 value={email}
@@ -56,7 +72,7 @@ const Login = () => {
             <div className="form-floating mb-4">
               <input
                 type="password"
-                className="form-control focus-ring"
+                className="form-control"
                 id="passwordInput"
                 placeholder="Password"
                 value={password}
@@ -69,16 +85,16 @@ const Login = () => {
               type="submit"
               className="btn btn-primary w-100 py-2 fw-bold shadow-sm"
             >
-              Log In
+              Register
             </button>
           </form>
           <div className="text-center mt-4">
-            <span className="text-muted small">Don't have an account? </span>
+            <span className="text-muted small">Already have an account? </span>
             <Link
-              to="/register"
+              to="/login"
               className="text-decoration-none fw-semibold small"
             >
-              Register here
+              Log in
             </Link>
           </div>
         </div>
@@ -87,4 +103,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Register;

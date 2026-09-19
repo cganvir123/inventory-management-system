@@ -25,6 +25,14 @@ const InwardRegister = sequelize.define(
       type: DataTypes.BOOLEAN,
       defaultValue: false, // Can be toggled to true when a Head of Department approves the inward entry
     },
+    sppMasterId: {
+      type: DataTypes.INTEGER,
+      allowNull: true, // Optional for backward compatibility with older entries
+    },
+    status: {
+      type: DataTypes.STRING,
+      defaultValue: "Pending", // States: 'Pending', 'Approved', 'Rejected'
+    },
     remarks: {
       type: DataTypes.TEXT,
       allowNull: true,
